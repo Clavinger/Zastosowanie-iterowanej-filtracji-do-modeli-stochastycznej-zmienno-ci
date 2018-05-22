@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1526914712912.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1799502413",
+    "id" : "9516B2CC",
+    "lastKnownWriteTime" : 1474040557,
+    "last_content_update" : 1474040557,
+    "path" : "~/sde 3/2RRRR/Kalman filter eksperyment symulacyjny 1.R",
+    "project_path" : null,
+    "properties" : {
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

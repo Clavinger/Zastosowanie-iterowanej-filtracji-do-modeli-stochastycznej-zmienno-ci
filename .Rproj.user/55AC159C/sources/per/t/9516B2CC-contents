@@ -1,0 +1,326 @@
+require(beepr)
+require(sde)
+require(FKF)
+
+
+
+#######################################
+################Eksperyment symulacyjny
+#######################################
+
+#liczba symulacji
+sym<-20
+#liczba wybranych metod
+met<-2
+
+#cz?stotliwo?? danych
+delta.p<-1
+#liczba obserwacji
+n<-2000
+
+#parametry
+mu=-0.03
+beta=0
+
+ni=3
+alpha=9
+lambda=0.05
+lambda.f=lambda*ni*delta
+ksi=ni/alpha
+omega=sqrt(ni)/alpha
+
+
+########################################
+########################################
+#Tworzenie macierzy wynik?w i b??d?w
+########################################
+
+
+#oszacowania parametr?w
+ksi.est<-matrix(0, nrow = sym+1, ncol = met)
+omega.est<-matrix(0, nrow = sym+1, ncol = met)
+lambda.est<-matrix(0, nrow = sym+1, ncol = met)
+mu.est <-matrix(0, nrow = sym+1, ncol = met)
+#beta.est<-matrix(0, nrow = sym+1, ncol = met)
+
+
+
+########################################
+#B??dy wzgl?dem prawdziwej warto?ci parametru
+########################################
+
+#ME wzgl?dem parametru alfa
+ksi.ME<-matrix(0, nrow = sym+1, ncol = met)
+
+#ME wzgl?dem parametru ni
+omega.ME<-matrix(0, nrow = sym+1, ncol = met)
+
+#ME wzgl?dem parametru lambda
+lambda.ME<-matrix(0, nrow = sym+1, ncol = met)
+
+
+#ME wzgl?dem parametru mu
+mu.ME<-matrix(0, nrow = sym+1, ncol = met)
+
+#ME wzgl?dem parametru beta
+beta.ME<-matrix(0, nrow = sym+1, ncol = met)
+
+#################################
+
+#RMSE wzgl?dem parametru beta
+ksi.RMSE<-matrix(0, nrow = sym+1, ncol = met)
+
+#RMSE wzgl?dem parametru ni
+omega.RMSE<-matrix(0, nrow = sym+1, ncol = met)
+
+
+#RMSE wzgl?dem parametru lambda
+lambda.RMSE<-matrix(0, nrow = sym+1, ncol = met)
+
+#RMSE wzgl?dem parametru mu
+mu.RMSE<-matrix(0, nrow = sym+1, ncol = met)
+
+#RMSE wzgl?dem parametru beta
+beta.RMSE<-matrix(0, nrow = sym+1, ncol = met)
+
+
+
+##################################
+
+
+
+
+########################################
+#Czas wykonania funkcji
+########################################
+
+czas<-matrix(0, nrow = sym+1, ncol = met)
+
+
+#############################################################
+#############################################################
+#############################################################
+#Implementacja metod estymacji
+#############################################################
+#############################################################
+#############################################################
+
+
+
+OUss <- function(mu, lambda, ksi, omega) {
+ 
+r.gw=lambda^(-2)*(exp(-lambda*delta)-1+lambda*delta)
+Tt <- matrix(c(0, 0, (1-exp(-lambda*delta))/lambda, exp(-lambda*delta)), ncol = 2)
+Zt <- matrix(c(0,1,0, 0), ncol = 2)
+ct <- matrix(c(mu*delta,mu^2*delta^2+ksi*delta),ncol=1)
+dt <- matrix(c(0,0), nrow = 2)
+GGt <- matrix(c(ksi*delta, 2*mu*delta^2*ksi,2*mu*delta^2*ksi,
+4*mu^2*delta^3*ksi+2*ksi^2*delta^2+4*omega^2/(lambda^2)*(exp(-lambda*delta)-1+lambda*delta)), ncol = 2)
+HHt <-2*omega^2* matrix( c( (-3/2-1/2*exp(-2*lambda*delta)+2*exp(-lambda*delta)+lambda*delta)/(lambda^2),
+(1-exp(-lambda*delta)-1/2*(1-exp(-2*lambda*delta)))/lambda,
+(1-exp(-lambda*delta)-1/2*(1-exp(-2*lambda*delta)))/lambda,
+1/2*(1-exp(-2*lambda))),ncol=2)
+
+a0 <- c(ksi, 0)
+P0 <- diag(2)
+return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+HHt = HHt))
+}
+
+
+objective <- function(theta) {
+sp <- OUss(theta[1], theta[2], theta[3], theta[4])
+ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt = rbind(x,x2))
+return(-ans$logLik)
+}
+
+
+
+
+
+#############################################################
+#############################################################
+#############################################################
+#Eksperyment symulacyjny
+#############################################################
+#############################################################
+#############################################################
+
+
+total.start.time <- Sys.time()
+for (s in 1:sym){
+print(s)
+
+z=1:n
+eta2=1:n
+sigma=1:n
+
+pos<-function(iten){
+ci<-NULL
+sum=0
+i=0
+while(sum<1){
+cip<-rexp(1, rate = iten)
+ci<-c(ci,cip)
+sum=sum+cip
+i=i+1
+}
+if(length(ci)>1){
+ci<-ci[1:(length(ci)-1)]
+ci<-cumsum(ci)
+}else ci=0
+ci
+}
+
+
+for (i in 2:n){
+ci<-pos(lambda.f)
+ri<-runif(length(ci))
+eta2[i]=exp(-lambda*delta)*(alpha^(-1))*sum(log(1/ci[1:length(ci)])*exp(lambda*delta*ri[1:length(ci)]))
+}
+eta2[eta2==Inf]=0
+
+
+z[1]=0
+sigma[1]=ni/alpha
+
+for (i in 2:n){
+sigma[i]=sigma[(i-1)]*exp(-lambda*delta)+eta2[i]
+}
+
+sigma
+plot(sigma,type='l')
+
+set.seed(s)
+u<-rnorm(n)
+y=1:n
+y2=1:n
+lr=1:n
+y[1]=1
+for(i in 2:n){
+sigma.act[i]<-(sigma[i]+sigma[i-1])*delta/2
+y[i]=y[i-1]+mu*delta+beta*sigma[i-1]+sqrt(sigma[i-1])*u[i-1]*sqrt(delta)
+y2[i]=y[i-1]+mu*delta+beta*sigma.act[i]+sqrt(sigma.act[i])*u[i-1]*sqrt(delta)
+}
+
+
+#zwroty
+x<-1:(n-1) 
+for (i in 2:n) x[i]=y[i]-y[i-1]
+
+#kwadraty zwrot?w
+x2<-x^2
+#x2<-x2[2:n]
+
+#skumuloane kwadraty zwrot?w (RV)
+v<-1:(n-1)
+for (i in 1:(n-1))v[i]=mean(x2[1:i])
+
+start.time <- Sys.time()
+model1=tryCatch({optim(c(mu,lambda,ksi,omega),objective, 
+method="L-BFGS-B", lower=c(-1,0.001, 0.001,0.001))})
+end.time <- Sys.time()
+
+czas[s,1]<- difftime(end.time, start.time, units= "secs")
+
+
+ksi.est[s,1]<-model1 $ par[3]
+omega.est[s,1]<-model1 $ par[4]
+lambda.est[s,1]<-model1  $ par[2]
+mu.est[s,1] <-model1 $ par[1]
+#beta.est[s,1]<-model1 $ par[1]
+
+ksi.ME[s,1]<-ksi.est[s,1]-ksi
+omega.ME[s,1]<-omega.est[s,1]-omega
+lambda.ME[s,1]<-lambda.est[s,1]-lambda
+mu.ME[s,1]<-mu.est[s,1]-mu
+#beta.ME[s,1]<-beta.est[s,1]-beta
+
+
+ksi.RMSE[s,1] <-(ksi.ME[s,1])^2
+omega.RMSE[s,1] <-(omega.ME[s,1])^2
+lambda.RMSE[s,1] <-(lambda.ME[s,1])^2
+mu.RMSE[s,1] <-(mu.ME[s,1])^2
+#beta.RMSE[s,1] <-(beta.ME[s,1])^2
+###################################################
+#koniec symulacji
+}
+
+total.end.time <- Sys.time()
+
+##################################################
+##################################################
+#Zapisywanie wynik?w do pliku
+##################################################
+##################################################
+
+
+###############################
+#Tworzenie ?rednich dla poszczeg?lnych tabel
+ksi.est[sym+1,]<-apply(ksi.est[1:sym,1:met], MARGIN=2, mean)
+omega.est[sym+1,]<-apply(omega.est[1:sym,1:met], MARGIN=2, mean)
+lambda.est[sym+1,]<-apply(lambda.est[1:sym,1:met], MARGIN=2, mean)
+#beta.est[sym+1,]<-apply(beta.est[1:sym,1:met], MARGIN=2, mean)
+mu.est[sym+1,]<-apply(mu.est[1:sym,1:met], MARGIN=2, mean)
+
+
+ksi.ME[sym+1,]<-apply(ksi.ME[1:sym,1:met], MARGIN=2, mean)
+omega.ME[sym+1,]<-apply(omega.ME[1:sym,1:met], MARGIN=2, mean)
+lambda.ME[sym+1,]<-apply(lambda.ME[1:sym,1:met], MARGIN=2, mean)
+#beta.ME[sym+1,]<-apply(beta.ME[1:sym,1:met], MARGIN=2, mean)
+mu.ME[sym+1,]<-apply(mu.ME[1:sym,1:met], MARGIN=2, mean)
+
+
+ksi.RMSE[sym+1,]<-apply(ksi.RMSE[1:sym,1:met], MARGIN=2, mean)
+omega.RMSE[sym+1,]<-apply(omega.RMSE[1:sym,1:met], MARGIN=2, mean)
+lambda.RMSE[sym+1,]<-apply(lambda.RMSE[1:sym,1:met], MARGIN=2, mean)
+#beta.RMSE[sym+1,]<-apply(beta.RMSE[1:sym,1:met], MARGIN=2, mean)
+mu.RMSE[sym+1,]<-apply(mu.RMSE[1:sym,1:met], MARGIN=2, mean)
+
+
+czas[sym+1,]<-apply(czas[1:sym,1:met], MARGIN=2, mean)
+
+
+#########Zapis do pliku
+
+write.csv2(ksi.est,file = "C:/Users/user/Documents/wynikiOU1/ksi.csv")
+write.csv2(omega.est,file = "C:/Users/user/Documents/wynikiOU1/omega.csv")
+write.csv2(lambda.est,file = "C:/Users/user/Documents/wynikiOU1/lambda.csv")
+#write.csv2(beta.est,file = "C:/Users/user/Documents/wynikiOU1/beta.csv")
+write.csv2(mu.est,file = "C:/Users/user/Documents/wynikiOU1/mu.csv")
+
+
+
+write.csv2(ksi.ME,file = "C:/Users/user/Documents/wynikiOU1/ksi_ME.csv")
+write.csv2(omega.ME,file = "C:/Users/user/Documents/wynikiOU1/omega_ME.csv")
+write.csv2(lambda.ME,file = "C:/Users/user/Documents/wynikiOU1/lambda_ME.csv")
+#write.csv2(beta.ME,file = "C:/Users/user/Documents/wynikiOU1/beta_ME.csv")
+write.csv2(mu.ME,file = "C:/Users/user/Documents/wynikiOU1/mu_ME.csv")
+
+
+
+write.csv2(ksi.RMSE,file = "C:/Users/user/Documents/wynikiOU1/ksi_RMSE.csv")
+write.csv2(omega.RMSE,file = "C:/Users/user/Documents/wynikiOU1/omega_RMSE.csv")
+write.csv2(lambda.RMSE,file = "C:/Users/user/Documents/wynikiOU1/lambda_RMSE.csv")
+#write.csv2(beta.RMSE,file = "C:/Users/user/Documents/wynikiO1U/beta_RMSE.csv")
+write.csv2(mu.RMSE,file = "C:/Users/user/Documents/wynikiOU1/mu_RMSE.csv")
+
+
+write.csv2(czas,file = "C:/Users/user/Documents/wynikiOU1/czas.csv")
+
+total.end.time -total.start.time 
+write.csv2(total.end.time -total.start.time ,file = "C:/Users/user/Documents/wynikiOU1/total time.csv")
+
+beep(2)
+
+
+
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+
