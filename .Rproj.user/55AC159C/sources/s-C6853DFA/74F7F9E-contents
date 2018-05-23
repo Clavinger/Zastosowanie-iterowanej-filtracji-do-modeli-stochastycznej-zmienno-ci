@@ -54,7 +54,9 @@ log.volatility.blad=array(data=NA,dim=c(4,sym+1,5),dimnames=list(metoda=c("QML",
                                                                  "MPE","MAPE")))
 #metoda x  nr symulaci  
 czas.obliczen=array(data=NA,dim=c(4,sym+1))
-  
+rownames(czas.obliczen)<-c("QML","LW","IF","PCMC")  
+colnames(czas.obliczen)<-c(1:sym,"srednia")
+
 #nr symulaci x nr obserwacji 
 zwroty.sim=array(data=NA,dim=c(sym+1,n))
 
@@ -63,7 +65,8 @@ log.volatility.sim=array(data=NA,dim=c(sym+1,n))
 
 #metoda x  nr symulaci  
 log.lik=array(data=NA,dim=c(4,sym+1))
-
+rownames(log.lik)<-c("QML","LW","IF","PCMC")
+colnames(log.lik)<-c(1:sym,"srednia")
 
 ##########################################################################
 ##########################################################################
@@ -244,8 +247,9 @@ log.volatility.list  <-pomp::simulate(bsv.model,nsim=sym,seed=123,params=c(mu=mu
         states = TRUE, obs = TRUE)
 
 
- 
+start_time_total<- Sys.time()
 for(s in 1:sym){
+  print(s)
   zwroty.sim[s,]= log.volatility.list$obs[1,s,]
   log.volatility.sim[s,]= log.volatility.list$states[1,s,] 
   
@@ -371,5 +375,85 @@ for(s in 1:sym){
   log.lik[2,s]=logLik(pfilter(bsv.filt,params=parametry.est[2,1:3,s],
                               Np=bsvlist[[1]][run_level]))
   
+  
+  ###############################################################################
+  
+  #4) PMCMC
+  
+  
+  hyperparams <- list(min = c(-1,0.9,0), max = c(1,1,1) )
+  bsv.dprior <- function (params, ..., log) {
+    f <- sum(dunif(params, min = hyperparams$min, max = hyperparams$max,
+                   log = TRUE))
+    if (log) f else exp(f)
   }
+  
+  start_time <- Sys.time()
+  pmcmc1 <-   pmcmc(pomp(bsv.filt, dprior = bsv.dprior), start = params_test,
+                    Nmcmc = 2000, Np = 100, max.fail = Inf,
+                    proposal = mvn.diag.rw(c(mu = 0.01, phi = 0.01, sigma_eta = 0.01)))
+  
+  continue( pmcmc1 ,Nmcmc=3000,proposal=mvn.rw(covmat( pmcmc1 ))) -> pmcmc1 
+  end_time <- Sys.time()
+  czas.obliczen[4,s]=end_time - start_time
+  
+  parametry.est[4, ,s]=as.vector(coef(pmcmc1 ),mode="numeric")
+  for(i in 1:3) parametry.blad[4,i,s,]=as.vector(accuracy(f= parametry.est[4,i ,s],x=params_test[i]),mode="numeric")
 
+  log.volatility.est[4,s,]=as.vector(pfilter(bsv.filt,params=parametry.est[4,1:3,s],
+                                             Np=bsvlist[[1]][run_level],filter.traj=T)@filter.traj[1,1,2:(n+1)],mode="numeric")
+  
+  log.volatility.blad[4,s,]=as.vector(accuracy(f=log.volatility.est[4,s,],x=log.volatility.sim[s,]),mode="numeric")
+  log.lik[4,s]=logLik(pmcmc1 )
+  
+  #koniec petli liczba symulacji
+  }
+  end_time_total <- Sys.time()
+  end_time_total - start_time_total
+  beep(1)
+  #save(parametry.est,parametry.blad,log.volatility.est,log.volatility.blad,czas.obliczen,
+   #    zwroty.sim,log.volatility.sim,log.lik,file="bsv_wyniki")
+  
+  
+  for (i in 1:4){
+    parametry.est[i,,sym+1]=apply(parametry.est[i,,1:sym],MARGIN = 1,FUN=mean)
+    for(j in 1:5) parametry.blad[i, , sym+1, j]=apply(parametry.blad[i,,1:sym,j],MARGIN = 1,FUN=mean)
+    log.volatility.blad[i,sym+1,]=apply(log.volatility.blad[i,1:sym,],MARGIN = 2,FUN=mean)
+    log.lik[i,sym+1]=mean(log.lik[i,1:sym])
+    czas.obliczen[i,sym+1]=mean(czas.obliczen[i,1:sym])
+  }
+   
+  
+  ##########################################################################
+  ##########################################################################
+  ##########################################################################
+  ######################################################podsumowanie wyników
+  
+  ##############################################################parametr: mu
+  mu
+  #oszacowania paramaetrów
+  parametry.est[ ,1, ]
+  #srednie błedy oszacowan
+  parametry.blad[ ,1 , sym+1, ]
+  #############################################################parametr: phi
+  phi
+  #oszacowania paramaetrów
+  parametry.est[ ,2, ]
+  #srednie błedy oszacowan
+  parametry.blad[ ,2 , sym+1, ]
+  #######################################################parametr: sigma_eta
+  sigma
+  #oszacowania paramaetrów
+  parametry.est[ ,3, ]
+  #srednie błedy oszacowan
+  parametry.blad[ ,3 , sym+1, ]  
+  
+  
+  #blad oszaowania procesu ukrytego
+  log.volatility.blad[,sym+1,]
+  
+  #wartosci funkcji wiarygodnosci
+  log.lik
+
+  
+    
