@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1527097588814.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1182354198",
+    "id" : "1B9E5C51",
+    "lastKnownWriteTime" : 1527152225,
+    "last_content_update" : 1527152226537,
+    "path" : "~/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Skrypty/Graficzna preznetacja wyników.R",
+    "project_path" : "Skrypty/Graficzna preznetacja wyników.R",
+    "properties" : {
+        "cursorPosition" : "315,0",
+        "scrollLine" : "292",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

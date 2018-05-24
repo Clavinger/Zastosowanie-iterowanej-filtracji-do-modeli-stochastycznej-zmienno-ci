@@ -5,17 +5,17 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "1911003758",
     "id" : "E90088A0",
     "lastKnownWriteTime" : 1525689319,
     "last_content_update" : 1525689319,
     "path" : "~/github/Leverage-effect/Skypty/Przyklad do prezentcji.R",
     "project_path" : null,
     "properties" : {
-        "cursorPosition" : "561,0",
-        "scrollLine" : "0"
+        "cursorPosition" : "239,47",
+        "scrollLine" : "220"
     },
-    "relative_order" : 2,
+    "relative_order" : 3,
     "source_on_save" : false,
     "source_window" : "",
     "type" : "r_source"

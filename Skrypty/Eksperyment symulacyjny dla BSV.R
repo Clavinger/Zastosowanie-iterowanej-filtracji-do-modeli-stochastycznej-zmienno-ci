@@ -1,7 +1,7 @@
 #eksperyment symulacyjny dla modelu basic stochastic volatility
 
 #rm(list = ls())
-setwd("C:/Users/user/Dropbox/phd/Skrypty do R/Leverage-effect/Dane")
+setwd("C:/Users/user/Documents/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Dane")
 
 
 #pakiety
@@ -256,6 +256,7 @@ for(s in 1:sym){
 
   ###############################################################################
   #3) metoda iterowanej filtracji 
+  print(paste("numer iteracji: ",s,"(metoda iterowanej filtracji)"))
   bsv.filt<-pomp(data=data.frame(y=zwroty.sim[s,],
                                   time=1:n),
                   statenames=bsv_statenames,
@@ -318,7 +319,7 @@ for(s in 1:sym){
   
   stopCluster(cl)
   end_time <- Sys.time()
-  czas.obliczen[3,s]=end_time - start_time
+  czas.obliczen[3,s]=difftime(end_time,start_time, units = "secs")
   
   r.if.bsv <- data.frame(logLik=L.if.bsv[,1],logLik_se=L.if.bsv[,2],t(sapply(if.bsv,coef)))
   parametry.est[3, ,s]=as.vector(r.if.bsv[which.max(r.if.bsv$logLik),3:5],mode="numeric")
@@ -330,13 +331,13 @@ for(s in 1:sym){
   
   ###############################################################################
   #1) metoda quasi-najwiekszej wiarygodnosci
-  
+  print(paste("numer iteracji: ",s,"(metoda quasi-najwiekszej wiarygodnosci)"))
   y=log(zwroty.sim[s,]^2)
   start_time <- Sys.time()
   KF.opt<-optim(c(mu,phi,sigma),KF.log, 
                 method="L-BFGS-B",hessian = T,lower=c(-Inf,-1,0),upper=c(Inf,1,Inf))
   end_time <- Sys.time()
-  czas.obliczen[1,s]=end_time - start_time
+  czas.obliczen[1,s]=difftime(end_time,start_time, units = "secs")
   
   
   parametry.est[1, ,s]=KF.opt$par
@@ -349,6 +350,7 @@ for(s in 1:sym){
   ###############################################################################
   
   #2) Liu and West
+  print(paste("numer iteracji: ",s,"(Liu and West)"))
   start_time <- Sys.time()
   stochVolModel <- nimbleModel(code = stochVCode, name ='stochVol',
                                constants = list(T = n),  data = list(y = as.vector(zwroty.sim[s,])),
@@ -362,7 +364,7 @@ for(s in 1:sym){
                                           project = stochVolModel)
   CstochVolLiuWestFilter$run(1000)
   end_time <- Sys.time()
-  czas.obliczen[2,s]=end_time - start_time
+  czas.obliczen[2,s]=difftime(end_time,start_time, units = "secs")
   muSamples <- as.matrix(CstochVolLiuWestFilter$mvEWSamples,'mu')
   phiSamples <- as.matrix(CstochVolLiuWestFilter$mvEWSamples,'phi')
   sigmaSamples <- as.matrix(CstochVolLiuWestFilter$mvEWSamples,'sigmaSquaredInv')
@@ -379,7 +381,7 @@ for(s in 1:sym){
   ###############################################################################
   
   #4) PMCMC
-  
+  print(paste("numer iteracji: ",s,"(PMCMC)"))
   
   hyperparams <- list(min = c(-1,0.9,0), max = c(1,1,1) )
   bsv.dprior <- function (params, ..., log) {
@@ -395,7 +397,7 @@ for(s in 1:sym){
   
   continue( pmcmc1 ,Nmcmc=3000,proposal=mvn.rw(covmat( pmcmc1 ))) -> pmcmc1 
   end_time <- Sys.time()
-  czas.obliczen[4,s]=end_time - start_time
+  czas.obliczen[4,s]=difftime(end_time,start_time, units = "secs")
   
   parametry.est[4, ,s]=as.vector(coef(pmcmc1 ),mode="numeric")
   for(i in 1:3) parametry.blad[4,i,s,]=as.vector(accuracy(f= parametry.est[4,i ,s],x=params_test[i]),mode="numeric")
@@ -409,11 +411,9 @@ for(s in 1:sym){
   #koniec petli liczba symulacji
   }
   end_time_total <- Sys.time()
-  end_time_total - start_time_total
+  difftime(end_time_total,start_time_total, units = "mins")
   beep(1)
-  #save(parametry.est,parametry.blad,log.volatility.est,log.volatility.blad,czas.obliczen,
-   #    zwroty.sim,log.volatility.sim,log.lik,file="bsv_wyniki")
-  
+ 
   
   for (i in 1:4){
     parametry.est[i,,sym+1]=apply(parametry.est[i,,1:sym],MARGIN = 1,FUN=mean)
@@ -422,7 +422,9 @@ for(s in 1:sym){
     log.lik[i,sym+1]=mean(log.lik[i,1:sym])
     czas.obliczen[i,sym+1]=mean(czas.obliczen[i,1:sym])
   }
-   
+  #save(parametry.est,parametry.blad,log.volatility.est,log.volatility.blad,czas.obliczen,
+   #   zwroty.sim,log.volatility.sim,log.lik,file="bsv_wyniki")
+  #load(file="bsv_wyniki")
   
   ##########################################################################
   ##########################################################################
@@ -454,4 +456,8 @@ for(s in 1:sym){
   
   #wartosci funkcji wiarygodnosci
   log.lik
+
+  #czas obliczen
+  czas.obliczen
+  difftime(end_time_total,start_time_total, units = "mins")
   
