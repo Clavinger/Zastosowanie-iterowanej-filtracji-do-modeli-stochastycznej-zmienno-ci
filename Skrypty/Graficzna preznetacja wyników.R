@@ -11,6 +11,7 @@ library(doParallel)
 library(doSNOW)
 library(lattice)
 library(ggplot2)
+library(GGally)
 library(gridExtra)
 library(reshape2)
 ##########################################################################
@@ -313,3 +314,8 @@ plot(if.bsv)
 r.if.bsv <- data.frame(logLik=L.if.bsv[,1],logLik_se=L.if.bsv[,2],t(sapply(if.bsv,coef)))
 r.if.bsv[which.max(r.if.bsv$logLik),]
 pairs(~logLik+mu+phi+sigma_eta,data=r.if.bsv)
+str(r.if.bsv)
+ggpairs(data=r.if.bsv, columns = c("logLik","mu","phi","sigma_eta"), title = "",  
+        axisLabels = "internal", columnLabels = c("logLik","mu","phi","sigma_eta"),
+        upper = list(continuous = "points"), diag=list(continuous = "blankDiag"),
+        lower = list(continuous = "cor"))+theme_bw()
