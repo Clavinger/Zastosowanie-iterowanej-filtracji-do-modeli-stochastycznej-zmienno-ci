@@ -1,6 +1,7 @@
 #eksperyment symulacyjny dla modelu basic stochastic volatility
 
 #rm(list = ls())
+#gc()
 setwd("C:/Users/user/Documents/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Dane")
 
 
@@ -161,8 +162,6 @@ wykres1= rbind(log.volatility.list$obs[1,1,],
 row.names(wykres1) = c("y","H","exp(H/2)")
 wykres1=as.data.frame(t(wykres1))
 
-
-
 g1<-ggplot(data = as.data.frame(wykres1), aes(x = 1:n, y = y))  + 
   geom_line(color = "royalblue", size = .5)+ggtitle('zwroty')+labs(x="time")+theme_bw()
 g2<-ggplot(data = as.data.frame(wykres1), aes(x = 1:n, y = H))  + 
@@ -201,7 +200,7 @@ bsv.filt<-pomp(data=data.frame(y=zwroty.sim,
 pf1 <- pfilter(bsv.filt,params=params_test,
                Np=1000,filter.traj=T)
 plot(pf1)
-str(pf1)
+coef(pf1)
 
 
 wykres2.matrix<-rbind(pf1@data,
@@ -266,6 +265,11 @@ grid.arrange(g1, g2a,g4, g3a,g5, nrow=3,ncol=2)
 ##########################################################################
 ######################################################Estymacja parametrow
 
+bsv_box <- rbind(
+  sigma_eta=c(0.1,1),
+  phi    = c(0.9,0.99),
+  mu = c(-1,01)
+)
 
 detectCores()
 cl <- makeCluster(3, type = "SOCK")
@@ -277,7 +281,7 @@ t.if.bsv <- system.time({
   if.bsv <- foreach(i=1:bsvlist[[5]][run_level] ,
                     .packages='pomp', .combine=c,.export = "bsvlist", 
                     .options.multicore=list(set.seed=TRUE)) %dopar% try(
-                      pomp::mif2(bsv.filt,start=params_test,Np=bsvlist[[1]][run_level] , Nmif=bsvlist[[2]][run_level] ,cooling.type="geometric",
+                      pomp::mif2(bsv.filt,start=apply(bsv_box,1,function(x) runif(1,x[1],x[2])),Np=bsvlist[[1]][run_level] , Nmif=bsvlist[[2]][run_level] ,cooling.type="geometric",
                                  cooling.fraction.50=bsv_cooling.fraction.50,
                                  transform=TRUE,
                                  rw.sd = rw.sd(
@@ -311,11 +315,403 @@ difftime(end_time,start_time, units = "mins")
 plot(if.bsv)
 
 
-r.if.bsv <- data.frame(logLik=L.if.bsv[,1],logLik_se=L.if.bsv[,2],t(sapply(if.bsv,coef)))
-r.if.bsv[which.max(r.if.bsv$logLik),]
-pairs(~logLik+mu+phi+sigma_eta,data=r.if.bsv)
-str(r.if.bsv)
-ggpairs(data=r.if.bsv, columns = c("logLik","mu","phi","sigma_eta"), title = "",  
+if.bsv.box  <- data.frame(logLik=L.if.bsv[,1],logLik_se=L.if.bsv[,2],t(sapply(if.bsv,coef)))
+if.bsv.box [which.max(if.bsv.box$logLik),]
+pairs(~logLik+mu+phi+sigma_eta,data=if.bsv.box )
+
+
+params_nowe2<- c(
+  mu        = as.numeric(if.bsv.box[which.max(if.bsv.box $logLik),'mu']),    
+  phi         = as.numeric(if.bsv.box[which.max(if.bsv.box $logLik),'phi']),    
+  sigma_eta   = as.numeric(if.bsv.box[which.max(if.bsv.box$logLik),'sigma_eta']) 
+)
+
+ggpairs(data=if.bsv.box, columns = c("logLik","mu","phi","sigma_eta"), title = "",  
         axisLabels = "internal", columnLabels = c("logLik","mu","phi","sigma_eta"),
         upper = list(continuous = "points"), diag=list(continuous = "blankDiag"),
         lower = list(continuous = "cor"))+theme_bw()
+
+     
+wyniki.mif.loglik<-matrix(NaN,ncol=bsvlist[[5]][run_level]+1,nrow= bsvlist[[2]][run_level])
+nazwy=1:bsvlist[[5]][run_level]
+for(i in 1:bsvlist[[5]][run_level]) wyniki.mif.loglik[,i]=conv.rec(if.bsv)[[i]][1:bsvlist[[2]][run_level] ,1] 
+for(i in 1:bsvlist[[5]][run_level]) nazwy[i]=paste(i)
+wyniki.mif.loglik[,bsvlist[[5]][run_level]+1]=1:bsvlist[[2]][run_level]
+wyniki.mif.loglik=as.data.frame(wyniki.mif.loglik)
+names(wyniki.mif.loglik)<-c(nazwy,"nr")
+wyniki.mif.loglik.long<-melt(wyniki.mif.loglik,id="nr")
+names(wyniki.mif.loglik.long)<-c("Nr_iteracji","IF","value")
+
+g1<-ggplot(data = wyniki.mif.loglik.long, aes(x = Nr_iteracji,y=value,colour=IF,linetype=IF) ) +ggtitle('logLik')+
+  geom_line(size = 1)+labs(x="Nr iteracji",y="Loglik")+theme_bw()+
+  scale_x_discrete(limits=1:bsvlist[[2]][run_level])
+
+
+wyniki.mif.mu<-matrix(NaN,ncol=bsvlist[[5]][run_level]+1,nrow= bsvlist[[2]][run_level]+1)
+for(i in 1:bsvlist[[5]][run_level]) wyniki.mif.mu[,i]=conv.rec(if.bsv)[[i]][,5] 
+wyniki.mif.mu[,bsvlist[[5]][run_level]+1]=0:bsvlist[[2]][run_level]
+wyniki.mif.mu=as.data.frame(wyniki.mif.mu)
+names(wyniki.mif.mu)<-c(nazwy,"nr")
+wyniki.mif.mu.long<-melt(wyniki.mif.mu,id="nr")
+names(wyniki.mif.mu.long)<-c("Nr_iteracji","IF","value")
+
+g2<-ggplot(data = wyniki.mif.mu.long, aes(x = Nr_iteracji,y=value,colour=IF,linetype=IF) ) +ggtitle(expression(mu))+
+  geom_line(size = 1)+labs(x="Nr iteracji",y=expression(mu))+theme_bw()+
+  scale_x_discrete(limits=0:bsvlist[[2]][run_level])
+
+
+
+wyniki.mif.phi<-matrix(NaN,ncol=bsvlist[[5]][run_level]+1,nrow= bsvlist[[2]][run_level]+1)
+for(i in 1:bsvlist[[5]][run_level]) wyniki.mif.phi[,i]=conv.rec(if.bsv)[[i]][,4] 
+wyniki.mif.phi[,bsvlist[[5]][run_level]+1]=0:bsvlist[[2]][run_level]
+wyniki.mif.phi=as.data.frame(wyniki.mif.phi)
+names(wyniki.mif.phi)<-c(nazwy,"nr")
+wyniki.mif.phi.long<-melt(wyniki.mif.phi,id="nr")
+names(wyniki.mif.phi.long)<-c("Nr_iteracji","IF","value")
+
+g3<-ggplot(data = wyniki.mif.phi.long, aes(x = Nr_iteracji,y=value,colour=IF,linetype=IF) ) +ggtitle(expression(phi))+
+  geom_line(size = 1)+labs(x="Nr iteracji",y=expression(phi))+theme_bw()+
+  scale_x_discrete(limits=0:bsvlist[[2]][run_level])
+
+
+
+wyniki.mif.sigma<-matrix(NaN,ncol=bsvlist[[5]][run_level]+1,nrow= bsvlist[[2]][run_level]+1)
+for(i in 1:bsvlist[[5]][run_level]) wyniki.mif.sigma[,i]=conv.rec(if.bsv)[[i]][,3] 
+wyniki.mif.sigma[,bsvlist[[5]][run_level]+1]=0:bsvlist[[2]][run_level]
+wyniki.mif.sigma=as.data.frame(wyniki.mif.sigma)
+names(wyniki.mif.sigma)<-c(nazwy,"nr")
+wyniki.mif.sigma.long<-melt(wyniki.mif.sigma,id="nr")
+names(wyniki.mif.sigma.long)<-c("Nr_iteracji","IF","value")
+
+g4<-ggplot(data = wyniki.mif.sigma.long, aes(x = Nr_iteracji,y=value,colour=IF,linetype=IF) ) +ggtitle(expression(sigma[eta]))+
+  geom_line(size = 1)+labs(x="Nr iteracji",y=expression(sigma[eta]))+theme_bw()+
+  scale_x_discrete(limits=0:bsvlist[[2]][run_level])
+
+
+grid.arrange(g1, g2,g3,g4,  nrow=2,ncol=2)
+
+
+##########################################################################
+##########################################################################
+###########################################################Profile funkcji 
+
+library(magrittr)
+library(plyr)
+
+
+
+###############################################################parametr: mu
+
+#szybka wersja
+profileDesign(
+  mu=seq(from=-1,to=0,length=21),
+  lower=c(phi=phi,sigma_eta=sigma),upper=c(phi=phi,sigma_eta=sigma),
+  nprof=2
+) -> pd
+str(pd)
+
+#dokladna wersja
+#profileDesign(
+#  mu=seq(from=-1,to=0,length=21),
+#  lower=c(phi=0.95,sigma_eta=0.01),upper=c(phi=0.99,sigma_eta=0.5),
+#  nprof=10
+#) -> pd
+#str(pd)
+
+pairs(~mu+phi+sigma_eta,data=pd)
+
+
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+
+
+foreach (p=iter(pd,"row"),
+         .combine=rbind,
+         .errorhandling="remove",
+         .packages=c("pomp","magrittr","reshape2","plyr"),
+         .export="bsv.filt",.inorder=FALSE
+) %dopar%
+{
+  bsv.filt %>% 
+    mif2(start=unlist(p),Nmif=1,Np=1000,transform=TRUE,
+         cooling.fraction.50=0.8,cooling.type="geometric",
+         rw.sd= rw.sd(phi = 0.02,
+                sigma_eta = 0.02)) %>%
+    mif2() -> mf
+  
+  pf <- replicate(5,pfilter(mf,Np=1000))  ## independent particle filters
+  ll <- sapply(pf,logLik)
+  ll <- logmeanexp(ll,se=TRUE)
+ nfail <- sapply(pf,getElement,"nfail")  ## number of filtering failures
+  
+  data.frame(as.list(coef(mf)),
+             loglik = ll[1],
+             loglik.se = ll[2],
+             nfail.min = min(nfail),
+             nfail.max = max(nfail))
+} %>% arrange(mu,-loglik) -> mu_prof
+
+stopCluster(cl)
+
+
+
+
+
+pairs(~loglik+mu+phi+sigma_eta,data=mu_prof,subset=loglik>max(loglik)-10)
+
+library(plyr)
+mu_prof %>% 
+  mutate(mu=signif(mu,8)) %>%
+  ddply(~mu,subset,loglik==max(loglik)) %>%
+  ggplot(aes(x=mu,y=loglik))+
+  geom_point()+geom_smooth()+
+  theme_bw()->g1
+
+
+
+
+###############################################################parametr: phi
+
+#szybka wersja
+profileDesign(
+  phi=seq(from=0.95,to=0.99,length=20),
+  lower=c(mu=mu,sigma_eta=sigma),upper=c(mu=mu,sigma_eta=sigma),
+  nprof=2
+) -> pd
+
+#dokladniejsza wersja
+#profileDesign(
+#  phi=seq(from=0.9,to=0.99,length=20),
+#  lower=c(mu=-1,sigma_eta=0.01),upper=c(mu=0,sigma_eta=0.5),
+#  nprof=10
+#) -> pd
+
+str(pd)
+
+pairs(~phi+mu+sigma_eta,data=pd)
+
+
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+
+
+foreach (p=iter(pd,"row"),
+         .combine=rbind,
+         .errorhandling="remove",
+         .packages=c("pomp","magrittr","reshape2","plyr"),
+         .export="bsv.filt",.inorder=FALSE
+) %dopar%
+{
+  bsv.filt %>% 
+    mif2(start=unlist(p),Nmif=1,Np=1000,transform=TRUE,
+         cooling.fraction.50=0.8,cooling.type="geometric",
+         rw.sd= rw.sd(phi = 0.02,
+                      mu = 0.02)) %>%
+    mif2() -> mf
+  
+  pf <- replicate(5,pfilter(mf,Np=1000))  ## independent particle filters
+  ll <- sapply(pf,logLik)
+  ll <- logmeanexp(ll,se=TRUE)
+  nfail <- sapply(pf,getElement,"nfail")  ## number of filtering failures
+  
+  data.frame(as.list(coef(mf)),
+             loglik = ll[1],
+             loglik.se = ll[2],
+             nfail.min = min(nfail),
+             nfail.max = max(nfail))
+} %>% arrange(phi,-loglik) -> phi_prof
+
+stopCluster(cl)
+
+
+
+
+
+pairs(~loglik+mu+phi+sigma_eta,data=phi_prof,subset=loglik>max(loglik)-10)
+
+library(plyr)
+phi_prof %>% 
+  mutate(phi=signif(phi,8)) %>%
+  ddply(~phi,subset,loglik==max(loglik)) %>%
+  ggplot(aes(x=phi,y=loglik))+
+  geom_point()+geom_smooth()+
+  theme_bw()->g2
+
+
+
+
+
+########################################################parametr: sigma_eta
+
+#szybka wersja 
+profileDesign(
+  sigma_eta=seq(from=0.01,to=0.5,length=20),
+  lower=c(mu=-1,phi=0.95),upper=c(mu=0,phi=0.99),
+  nprof=2
+) -> pd
+
+#dokladna wersja
+profileDesign(
+  sigma_eta=seq(from=0.01,to=0.5,length=20),
+  lower=c(mu=mu,phi=phi),upper=c(mu=mi,phi=phi),
+  nprof=10
+) -> pd
+
+str(pd)
+
+pairs(~mu+phi+sigma_eta,data=pd)
+
+
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+
+
+foreach (p=iter(pd,"row"),
+         .combine=rbind,
+         .errorhandling="remove",
+         .packages=c("pomp","magrittr","reshape2","plyr"),
+         .export="bsv.filt",.inorder=FALSE
+) %dopar%
+{
+  bsv.filt %>% 
+    mif2(start=unlist(p),Nmif=1,Np=1000,transform=TRUE,
+         cooling.fraction.50=0.8,cooling.type="geometric",
+         rw.sd= rw.sd(phi = 0.02,
+                      mu = 0.02)) %>%
+    mif2() -> mf
+  
+  pf <- replicate(5,pfilter(mf,Np=1000))  ## independent particle filters
+  ll <- sapply(pf,logLik)
+  ll <- logmeanexp(ll,se=TRUE)
+  nfail <- sapply(pf,getElement,"nfail")  ## number of filtering failures
+  
+  data.frame(as.list(coef(mf)),
+             loglik = ll[1],
+             loglik.se = ll[2],
+             nfail.min = min(nfail),
+             nfail.max = max(nfail))
+} %>% arrange(sigma_eta,-loglik) -> sigma_eta_prof
+
+stopCluster(cl)
+
+
+
+
+
+pairs(~loglik+mu+phi+sigma_eta,data=sigma_eta_prof,subset=loglik>max(loglik)-10)
+
+library(plyr)
+sigma_eta_prof %>% 
+  mutate(sigma_eta=signif(sigma_eta,8)) %>%
+  ddply(~sigma_eta,subset,loglik==max(loglik)) %>%
+  ggplot(aes(x=sigma_eta,y=loglik))+
+  geom_point()+geom_smooth()+
+  theme_bw()->g3
+
+#################################################################podsumowanie
+
+
+grid.arrange(g1, g2,g3, ncol=3)
+
+############################################################################
+############################################################################
+############################################################################
+######################################profile funkcji wiarygodnosci 2 wersja
+
+
+params_nowe2=params_test
+
+#################################################################parametr mu
+xx1<-seq(from=-1.5,to=0.5,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.bsv.log<- foreach(i=1:length(xx1) ,.packages='pomp', .export = "bsvlist",.combine=rbind,
+                    .options.multicore=list(set.seed=TRUE)) %dopar% {
+                      set.seed(87932)
+                      logLik(pfilter(bsv.filt,params=c(mu=xx1[i], phi=as.numeric(params_nowe2['phi']),sigma_eta=as.numeric(params_nowe2['sigma_eta'])),
+                                     Np=bsvlist[[1]][run_level] ))
+                    }
+
+stopCluster(cl)
+beep(2)
+
+plot(xx1, L.bsv.log, type='l',xlab=expression(mu),ylab="logLik")
+#abline(v=params_nowe2['mu_h'],lty=2)
+#points(xx1, L.bsv.log)
+points(if.bsv.box [,'mu'], if.bsv.box[,'logLik'] ,col='red',pch=16)
+p=loess(L.bsv.log~xx1,span=0.5)
+lines(xx1,p$fitted,col='blue',lwd=2)
+
+
+wykres.mu=as.data.frame(t(rbind(xx1,as.vector(L.bsv.log))))
+names(wykres.mu)<-c("mu","loglik")
+g1<-ggplot(data = wykres.mu, aes(x = mu, y = loglik))  + 
+  geom_point(color = "black", size = 1)+
+  ggtitle(expression(mu))+labs(x=expression(mu))+geom_smooth()+theme_bw()
+
+
+#parametr phi
+xx2<-seq(from=0.95,to=0.99,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.bsv.log2<- foreach(i=1:length(xx2) ,.packages='pomp', .export = "bsvlist",.combine=rbind,
+                     .options.multicore=list(set.seed=TRUE)) %dopar% {
+                       set.seed(87932)
+                       logLik(pfilter(bsv.filt,params=c(mu=as.numeric(params_nowe2['mu']), phi=xx2[i],sigma_eta=as.numeric(params_nowe2['sigma_eta'])),
+                                      Np=bsvlist[[1]][run_level] ))
+                     }
+stopCluster(cl)
+beep(2)
+
+plot(xx2, L.bsv.log2, type='l',xlab=expression(phi),ylab="logLik")
+#points(xx2, L.bsv.log2)
+points(if.bsv.box[,'phi'], if.bsv.box[,'logLik'] ,col='red',pch=16)
+p2=loess(L.bsv.log2~xx2, span=0.5)
+lines(xx2,p2$fitted,col='blue',lwd=2)
+
+wykres.phi=as.data.frame(t(rbind(xx2,as.vector(L.bsv.log2))))
+names(wykres.phi)<-c("phi","loglik")
+g2<-ggplot(data = wykres.phi, aes(x = phi, y = loglik))  + 
+  geom_point(color = "black", size = 1)+
+  ggtitle(expression(phi))+labs(x=expression(phi))+geom_smooth()+theme_bw()
+
+
+
+#parametr sigma_eta
+xx3<-seq(from=params_nowe2['sigma_eta']-.1,to=params_nowe2['sigma_eta']+.1,length.out = 100)
+detectCores()
+cl <- makeCluster(3, type = "SOCK")
+registerDoSNOW(cl)
+L.bsv.log3<- foreach(i=1:length(xx3) ,.packages='pomp', .export = "bsvlist",.combine=rbind,
+                     .options.multicore=list(set.seed=TRUE)) %dopar% {
+                       set.seed(87932)
+                       logLik(pfilter(bsv.filt,params=c(mu=as.numeric(params_nowe2['mu']), phi=as.numeric(params_nowe2['phi']),sigma_eta=xx3[i]),
+                                      Np=bsvlist[[1]][run_level] ))
+                     }
+
+stopCluster(cl)
+beep(2)
+
+plot(xx3, L.bsv.log3, type='l',xlab=expression(sigma[eta]),ylab="logLik")
+#points(xx3, L.bsv.log3)
+points(if.bsv.box[,'sigma_eta'], if.bsv.box[,'logLik'] ,col='red',pch=16)
+p3=loess(L.bsv.log3~xx3,span=0.5)
+lines(xx3,p3$fitted,col='blue',lwd=2)
+
+
+wykres.sigma_eta=as.data.frame(t(rbind(xx3,as.vector(L.bsv.log3))))
+names(wykres.sigma_eta)<-c("sigma_eta","loglik")
+g3<-ggplot(data = wykres.sigma_eta, aes(x = sigma_eta, y = loglik))  + 
+  geom_point(color = "black", size = 1)+
+  ggtitle(expression(sigma[eta]))+labs(x=expression(sigma[eta]))+geom_smooth()+theme_bw()
+
+
+#################################################################podsumowanie
+
+
+grid.arrange(g1, g2,g3, ncol=3)
