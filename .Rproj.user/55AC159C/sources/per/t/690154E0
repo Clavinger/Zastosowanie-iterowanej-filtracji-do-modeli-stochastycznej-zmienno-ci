@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1528104343054.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3447158735",
+    "id" : "690154E0",
+    "lastKnownWriteTime" : 1527510244,
+    "last_content_update" : 1527510244,
+    "path" : "~/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Skrypty/Fat Stochastic Volatility.R",
+    "project_path" : "Skrypty/Fat Stochastic Volatility.R",
+    "properties" : {
+        "cursorPosition" : "227,95",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -22,7 +22,7 @@ library(ggplot2)
 library(GGally)
 library(gridExtra)
 library(reshape2)
-
+library(FKF)
 
 #FSV specyfikacja do symulacji
 
@@ -419,6 +419,66 @@ grid.arrange(g1, g2,g3,g4, ncol=2)
 
 
 
+OUss <- function(mu,phi,sigma,gamma){
+  Tt <- matrix(phi,ncol=1)
+  Zt <- matrix(1,ncol=1)
+  ct <- matrix(-1.27-digamma(gamma/2)+log(gamma/2),ncol=1)
+  dt <- matrix(mu*(1-phi), nrow = 1)
+  GGt<- matrix(pi^2/2+trigamma(gamma/2),nrow = 1,ncol=1)
+  HHt<- matrix(sigma^2,nrow=1,ncol=1)
+  a0 <-  as.vector(matrix(mu+1.27))
+  P0 <- matrix(1,nrow=1,ncol=1)
+  return(list(a0 = a0, P0 = P0, ct = ct, dt = dt, Zt = Zt, Tt = Tt, GGt = GGt,
+              HHt = HHt))
+}
+
+KF.log <- function(theta) {
+  sp <- OUss(theta[1], theta[2], theta[3],theta[4])
+  ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+             Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(log(zwroty.sim^2), nrow=1,ncol=n))
+  return(-ans$logLik)
+}
+
+
+
+KF <- function(theta) {
+  sp <- OUss(theta[1], theta[2], theta[3])
+  ans <- fkf(a0 = sp$a0, P0 = sp$P0, dt = sp$dt, ct = sp$ct, Tt = sp$Tt,
+             Zt = sp$Zt, HHt = sp$HHt, GGt = sp$GGt, yt =matrix(log(zwroty.sim^2), nrow=1,ncol=n))
+  return(ans$att[1,])
+}
+
+
+KF.log(c(mu,phi,sigma,gamma))
+KF.opt<-optim(c(mu,phi,sigma,gamma),KF.log, 
+              method="L-BFGS-B",hessian = T,lower=c(-Inf,-1,0,0),upper=c(Inf,1,Inf,Inf))
+KF.opt$par
+KF.opt$value
+
+xx1<-seq(from=-2,to=0,length.out = 100)
+p1<-sapply(xx1, function(z)  - KF.log(c(z, KF.opt$par[2],KF.opt$par[3] ,KF.opt$par[4])))
+plot(xx1, p1, type='l', xlab=expression(mu))
+abline(v=mu)
+abline(v=KF.opt$par[1],col='red',lty=2)
+
+xx2<-seq(from=0.95,to=0.999,length.out = 100)
+p2<-sapply(xx2, function(z)  - KF.log(c(KF.opt$par[1], z,KF.opt$par[3],KF.opt$par[4])))
+plot(xx2, p2, type='l', xlab=expression(phi))
+abline(v=phi)
+abline(v=KF.opt$par[2],col='red',lty=2)
+
+xx3<-seq(from=0.1,to=0.4,length.out = 100)
+p3<-sapply(xx3, function(z)  - KF.log(c(KF.opt$par[1], KF.opt$par[2],z ,KF.opt$par[4])))
+plot(xx3, p3, type='l', xlab=expression(sigma[eta]))
+abline(v=sigma)
+abline(v=KF.opt$par[3],col='red',lty=2)
+
+
+xx4<-seq(from=1,to=10,length.out = 100)
+p4<-sapply(xx4, function(z)  - KF.log(c(KF.opt$par[1], KF.opt$par[2],KF.opt$par[3] ,z)))
+plot(xx4, p4, type='l', xlab=expression(gamma))
+abline(v=gamma)
+abline(v=KF.opt$par[4],col='red',lty=2)
 
 
 ############################################################################
@@ -426,15 +486,17 @@ grid.arrange(g1, g2,g3,g4, ncol=2)
 ############################################################################
 ################################################################Liu and West 
 
-
+##################################nie zrobione
 stochVCode <- nimbleCode({
   
   
   x[1] ~ dnorm(mu*(1-phi) + phi * x0, var = 1/sigmaSquaredInv)
+  G[1] ~rchisq(gamma)
   y[1] ~ dnorm(0, var =  exp(x[1]))
+  
   for(t in 2:T){
     x[t] ~ dnorm(mu*(1-phi) + phi * x[t-1],  var = 1/sigmaSquaredInv)
-    y[t] ~ dnorm(0, var = exp(x[t]))
+    y[t] ~ dnorm(0, var = exp(x[t])/G[t])
   }
   
   x0 ~ dnorm(0, var = 1/sigmaSquaredInv)

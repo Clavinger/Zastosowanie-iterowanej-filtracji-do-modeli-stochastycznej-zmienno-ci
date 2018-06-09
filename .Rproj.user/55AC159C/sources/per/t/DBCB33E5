@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1528100231641.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3411109027",
+    "id" : "DBCB33E5",
+    "lastKnownWriteTime" : 1528113495,
+    "last_content_update" : 1528113495126,
+    "path" : "~/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Skrypty/bsv empiryczny przyklad.R",
+    "project_path" : "Skrypty/bsv empiryczny przyklad.R",
+    "properties" : {
+        "cursorPosition" : "248,0",
+        "scrollLine" : "227",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
