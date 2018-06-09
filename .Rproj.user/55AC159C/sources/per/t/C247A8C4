@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1528529372518.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4128033880",
+    "id" : "C247A8C4",
+    "lastKnownWriteTime" : 1528559942,
+    "last_content_update" : 1528559942237,
+    "path" : "~/github/Zastosowanie-iterowanej-filtracji-do-modeli-stochastycznej-zmienno-ci/Skrypty/C barndorff-nielsen and  shephard model.R",
+    "project_path" : "Skrypty/C barndorff-nielsen and  shephard model.R",
+    "properties" : {
+        "cursorPosition" : "3,1",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
