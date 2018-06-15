@@ -450,9 +450,12 @@ params_test=c(
 ###########################################################################################
 ###########################################################################################
 ##################################################################################Filtracja
-
-pf1 <- pfilter(bns.model,params=params_test,
+start_time <- Sys.time()
+pf2 <- pfilter(bns.model,params=params_test,
                Np=1000,filter.mean=T)
+end_time <- Sys.time()
+difftime(end_time,start_time, units = "sec")
+
 plot(pf1)
 str(filter.mean(pf1))
 plot(sigma[2:n],type='l')
